@@ -14,12 +14,15 @@ import com.opengamma.strata.basics.currency.Currency;
 import com.opengamma.strata.basics.currency.CurrencyAmount;
 import com.opengamma.strata.basics.currency.MultiCurrencyAmount;
 import com.opengamma.strata.collect.ArgChecker;
+import com.opengamma.strata.collect.tuple.Pair;
+import com.opengamma.strata.collect.tuple.Triple;
 import com.opengamma.strata.market.amount.CashFlows;
 import com.opengamma.strata.market.explain.ExplainKey;
 import com.opengamma.strata.market.explain.ExplainMap;
 import com.opengamma.strata.market.explain.ExplainMapBuilder;
 import com.opengamma.strata.market.sensitivity.PointSensitivityBuilder;
 import com.opengamma.strata.pricer.rate.RatesProvider;
+import com.opengamma.strata.product.rate.FixedRateComputation;
 import com.opengamma.strata.product.swap.CompoundingMethod;
 import com.opengamma.strata.product.swap.PaymentPeriod;
 import com.opengamma.strata.product.swap.RateAccrualPeriod;
@@ -231,6 +234,14 @@ public class DiscountingSwapProductPricer {
     ResolvedSwapLeg referenceLeg = swap.getLegs().get(0);
     Currency ccyReferenceLeg = referenceLeg.getCurrency();
     double convertedPv = presentValue(swap, ccyReferenceLeg, provider).getAmount();
+    Triple<Boolean, Integer, Double> fixedCompounded = checkFixedCompounded(referenceLeg);
+    if(fixedCompounded.getFirst()) {
+      double df = provider.discountFactor(ccyReferenceLeg, referenceLeg.getPaymentPeriods().get(0).getPaymentDate());
+      double referenceConvertedPv = legPricer.presentValue(referenceLeg, provider).getAmount();
+      double parSpread = Math.pow(-(convertedPv - referenceConvertedPv)/df, 1.0/fixedCompounded.getSecond()) 
+          - (1.0 + fixedCompounded.getThird());
+      return parSpread;
+    }
     double pvbp = legPricer.pvbp(referenceLeg, provider);
     return -convertedPv / pvbp;
   }
@@ -445,6 +456,46 @@ public class DiscountingSwapProductPricer {
       throw new IllegalArgumentException("Swap must contain a fixed leg");
     }
     return fixedLegs.get(0);
+  }
+  
+  // Checking if the leg is a fixed leg with one payment and fixed compounding
+  // This type of leg is used in zero-coupon inflation swaps
+  // When returning a 'true' for the first element, the second element is the number of periods which are used in 
+  //   par rate/spread computation.
+  private Triple<Boolean, Integer, Double> checkFixedCompounded(ResolvedSwapLeg leg) {
+    if(leg.getPaymentPeriods().size() != 1) {
+      return Triple.of(false, 0, 0.0d); // Only one period
+    };
+    if(leg.getPaymentEvents().size() != 0) {
+      return Triple.of(false, 0, 0.0d); // No event
+    }
+    PaymentPeriod paymentPeriods = leg.getPaymentPeriods().get(0);
+    if(!(paymentPeriods instanceof RatePaymentPeriod)) {
+      return Triple.of(false, 0, 0.0d); // Not a ratePaymentPeriod
+    }
+    RatePaymentPeriod ratePaymentPeriod = (RatePaymentPeriod) paymentPeriods;
+    if (ratePaymentPeriod.getCompoundingMethod() == CompoundingMethod.NONE) {
+      return Triple.of(false, 0, 0.0d); // Should be compounded
+    }
+    ImmutableList<RateAccrualPeriod> accrualPeriods = ratePaymentPeriod.getAccrualPeriods();
+    int nbAccrualPeriods = accrualPeriods.size();
+    double fixedRate = 0;
+    for (int i = 0; i < nbAccrualPeriods; i++) {
+      if (!(accrualPeriods.get(i).getRateComputation() instanceof FixedRateComputation)) {
+        return Triple.of(false, 0, 0.0d); // Should be fixed period
+      }
+      fixedRate = ((FixedRateComputation) accrualPeriods.get(i).getRateComputation()).getRate();
+      if (accrualPeriods.get(i).getSpread() != 0) {
+        return Triple.of(false, 0, 0.0d); // Should have no spread
+      }
+      if (accrualPeriods.get(i).getGearing() != 1.0d) {
+        return Triple.of(false, 0, 0.0d); // Should have a gearing of 1.
+      }
+      if (accrualPeriods.get(i).getYearFraction() != 1.0d) {
+        return Triple.of(false, 0, 0.0d); // Should have a year fraction of 1.
+      }
+    }
+    return Triple.of(true, nbAccrualPeriods, fixedRate);
   }
 
 }

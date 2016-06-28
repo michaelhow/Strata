@@ -12,6 +12,7 @@ import static com.opengamma.strata.basics.date.DayCounts.ACT_365F;
 import static com.opengamma.strata.basics.date.HolidayCalendarIds.USNY;
 import static com.opengamma.strata.basics.index.IborIndices.USD_LIBOR_3M;
 import static com.opengamma.strata.basics.index.OvernightIndices.USD_FED_FUND;
+import static com.opengamma.strata.basics.index.PriceIndices.US_CPI_U;
 import static com.opengamma.strata.product.swap.type.FixedOvernightSwapConventions.USD_FIXED_1Y_FED_FUND_OIS;
 import static org.testng.Assert.assertEquals;
 
@@ -54,6 +55,7 @@ import com.opengamma.strata.market.interpolator.CurveExtrapolator;
 import com.opengamma.strata.market.interpolator.CurveExtrapolators;
 import com.opengamma.strata.market.interpolator.CurveInterpolator;
 import com.opengamma.strata.market.interpolator.CurveInterpolators;
+import com.opengamma.strata.market.observable.IndexQuoteId;
 import com.opengamma.strata.market.observable.QuoteId;
 import com.opengamma.strata.pricer.deposit.DiscountingTermDepositProductPricer;
 import com.opengamma.strata.pricer.rate.RatesProvider;
@@ -95,6 +97,8 @@ public class CalibrationInflationUsdTest {
   private static final Map<CurveName, Currency> DSC_NAMES = new HashMap<>();
   private static final Map<CurveName, Set<Index>> IDX_NAMES = new HashMap<>();
   private static final Map<Index, LocalDateDoubleTimeSeries> TS = new HashMap<>();
+  private static final LocalDateDoubleTimeSeries TS_USD_CPI = 
+      LocalDateDoubleTimeSeries.builder().put(LocalDate.of(2015, 6, 30), 123.4).build();
   static {
     DSC_NAMES.put(DSCON_CURVE_NAME, USD);
     Set<Index> usdFedFundSet = new HashSet<>();
@@ -103,6 +107,7 @@ public class CalibrationInflationUsdTest {
     Set<Index> usdLibor3Set = new HashSet<>();
     usdLibor3Set.add(USD_LIBOR_3M);
     IDX_NAMES.put(CPI_CURVE_NAME, usdLibor3Set);
+    TS.put(US_CPI_U, TS_USD_CPI);
   }
 
   /** Data for USD-DSCON curve */
@@ -158,7 +163,7 @@ public class CalibrationInflationUsdTest {
       Period.ofYears(1), Period.ofYears(2), Period.ofYears(3), Period.ofYears(4), Period.ofYears(5)};
   static {
     for (int i = 0; i < CPI_NB_NODES; i++) {
-      CPI_NODES[i + 1] = FixedInflationSwapCurveNode.of(
+      CPI_NODES[i] = FixedInflationSwapCurveNode.of(
           FixedInflationSwapTemplate.of(Tenor.of(CPI_TENORS[i]), FixedInflationSwapConventions.USD_FIXED_ZC_US_CPI),
           QuoteId.of(StandardId.of(SCHEME, CPI_ID_VALUE[i])));
     }
@@ -174,7 +179,9 @@ public class CalibrationInflationUsdTest {
     for (int i = 0; i < CPI_NB_NODES; i++) {
       builder.addValue(QuoteId.of(StandardId.of(SCHEME, CPI_ID_VALUE[i])), CPI_MARKET_QUOTES[i]);
     }
+    builder.addTimeSeries(IndexQuoteId.of(US_CPI_U), TS_USD_CPI);
     ALL_QUOTES = builder.build();
+    
   }
 
   /** All nodes by groups. */
@@ -225,7 +232,7 @@ public class CalibrationInflationUsdTest {
   private static final InterpolatedNodalCurveDefinition CPI_CURVE_DEFN =
       InterpolatedNodalCurveDefinition.builder()
           .name(CPI_CURVE_NAME)
-          .xValueType(ValueType.YEAR_FRACTION)
+          .xValueType(ValueType.MONTHS)
           .yValueType(ValueType.PRICE_INDEX)
           .dayCount(CURVE_DC)
           .interpolator(INTERPOLATOR_LINEAR) // TODO: This is not good for inflation but will do for the test
@@ -236,7 +243,7 @@ public class CalibrationInflationUsdTest {
       CurveGroupDefinition.builder()
           .name(CURVE_GROUP_NAME)
           .addCurve(DSC_CURVE_DEFN, USD, USD_FED_FUND)
-          .addForwardCurve(CPI_CURVE_DEFN, USD_LIBOR_3M).build();
+          .addPriceIndexCurve(CPI_CURVE_DEFN, US_CPI_U).build();
 
   //-------------------------------------------------------------------------
   public void calibration_present_value_oneGroup() {
