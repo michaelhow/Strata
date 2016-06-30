@@ -14,7 +14,6 @@ import com.opengamma.strata.basics.currency.Currency;
 import com.opengamma.strata.basics.currency.CurrencyAmount;
 import com.opengamma.strata.basics.currency.MultiCurrencyAmount;
 import com.opengamma.strata.collect.ArgChecker;
-import com.opengamma.strata.collect.tuple.Pair;
 import com.opengamma.strata.collect.tuple.Triple;
 import com.opengamma.strata.market.amount.CashFlows;
 import com.opengamma.strata.market.explain.ExplainKey;
@@ -194,28 +193,22 @@ public class DiscountingSwapProductPricer {
       double pvbpFixedLeg = legPricer.pvbp(fixedLeg, provider);
       // Par rate
       return -(otherLegsConvertedPv + fixedLegEventsPv) / pvbpFixedLeg;
-    } else {
-      PaymentPeriod firstPeriod = fixedLeg.getPaymentPeriods().get(0);
-      ArgChecker.isTrue(firstPeriod instanceof RatePaymentPeriod, "PaymentPeriod must be instance of RatePaymentPeriod");
-      RatePaymentPeriod payment = (RatePaymentPeriod) firstPeriod;
-      if (payment.getAccrualPeriods().size() == 1) { // no compounding
-        // PVBP
-        double pvbpFixedLeg = legPricer.pvbp(fixedLeg, provider);
-        // Par rate
-        return -(otherLegsConvertedPv + fixedLegEventsPv) / pvbpFixedLeg;
-      }
-      // try Compounding
-      ImmutableList<RateAccrualPeriod> ap = payment.getAccrualPeriods();
-      ArgChecker.isFalse(payment.getCompoundingMethod().equals(CompoundingMethod.NONE), "should be compounding");
-      for (RateAccrualPeriod p : ap) {
-        ArgChecker.isTrue(p.getYearFraction() == 1.0, "accrual factor should be 1");
-        ArgChecker.isTrue(p.getSpread() == 0.0, "no spread");
-      }
-      double nbAp = ap.size();
-      double notional = payment.getNotional();
-      double df = provider.discountFactor(ccyFixedLeg, payment.getPaymentDate());
-      return Math.pow(-(otherLegsConvertedPv + fixedLegEventsPv) / notional / df + 1d, 1 / nbAp) - 1d;
     }
+    PaymentPeriod firstPeriod = fixedLeg.getPaymentPeriods().get(0);
+    ArgChecker.isTrue(firstPeriod instanceof RatePaymentPeriod, "PaymentPeriod must be instance of RatePaymentPeriod");
+    RatePaymentPeriod payment = (RatePaymentPeriod) firstPeriod;
+    if (payment.getAccrualPeriods().size() == 1) { // no compounding
+      // PVBP
+      double pvbpFixedLeg = legPricer.pvbp(fixedLeg, provider);
+      // Par rate
+      return -(otherLegsConvertedPv + fixedLegEventsPv) / pvbpFixedLeg;
+    }
+    // try Compounding
+    Triple<Boolean, Integer, Double> fixedCompounded = checkFixedCompounded(fixedLeg);
+    double notional = payment.getNotional();
+    double df = provider.discountFactor(ccyFixedLeg, payment.getPaymentDate());
+    return Math.pow(-(otherLegsConvertedPv + fixedLegEventsPv) / (notional * df) + 1.0d,
+        1.0 / fixedCompounded.getSecond()) - 1.0d;
   }
 
   /**
@@ -233,17 +226,33 @@ public class DiscountingSwapProductPricer {
   public double parSpread(ResolvedSwap swap, RatesProvider provider) {
     ResolvedSwapLeg referenceLeg = swap.getLegs().get(0);
     Currency ccyReferenceLeg = referenceLeg.getCurrency();
-    double convertedPv = presentValue(swap, ccyReferenceLeg, provider).getAmount();
-    Triple<Boolean, Integer, Double> fixedCompounded = checkFixedCompounded(referenceLeg);
-    if(fixedCompounded.getFirst()) {
-      double df = provider.discountFactor(ccyReferenceLeg, referenceLeg.getPaymentPeriods().get(0).getPaymentDate());
-      double referenceConvertedPv = legPricer.presentValue(referenceLeg, provider).getAmount();
-      double parSpread = Math.pow(-(convertedPv - referenceConvertedPv)/df, 1.0/fixedCompounded.getSecond()) 
-          - (1.0 + fixedCompounded.getThird());
-      return parSpread;
+    if (referenceLeg.getPaymentPeriods().size() > 1) { // try multiperiod par-spread
+      double convertedPv = presentValue(swap, ccyReferenceLeg, provider).getAmount();
+      double pvbp = legPricer.pvbp(referenceLeg, provider);
+      return -convertedPv / pvbp;
     }
-    double pvbp = legPricer.pvbp(referenceLeg, provider);
-    return -convertedPv / pvbp;
+    PaymentPeriod firstPeriod = referenceLeg.getPaymentPeriods().get(0);
+    ArgChecker.isTrue(firstPeriod instanceof RatePaymentPeriod, "PaymentPeriod must be instance of RatePaymentPeriod");
+    RatePaymentPeriod payment = (RatePaymentPeriod) firstPeriod;
+    if (payment.getAccrualPeriods().size() == 1) { // no compounding
+      double convertedPv = presentValue(swap, ccyReferenceLeg, provider).getAmount();
+      // PVBP
+      double pvbpFixedLeg = legPricer.pvbp(referenceLeg, provider);
+      // Par rate
+      return -convertedPv / pvbpFixedLeg;
+    }
+    // try Compounding
+    Triple<Boolean, Integer, Double> fixedCompounded = checkFixedCompounded(referenceLeg);
+    ArgChecker.isTrue(fixedCompounded.getFirst(),
+        "Swap should have a fixed leg and for one payment it should be based on compunding witout spread.");
+    double df = provider.discountFactor(ccyReferenceLeg, referenceLeg.getPaymentPeriods().get(0).getPaymentDate());
+    double convertedPv = presentValue(swap, ccyReferenceLeg, provider).getAmount();
+    double referenceConvertedPv = legPricer.presentValue(referenceLeg, provider).getAmount();
+    double notional = ((RatePaymentPeriod) referenceLeg.getPaymentPeriods().get(0)).getNotional();
+    double parSpread =
+        Math.pow(-(convertedPv - referenceConvertedPv) / (df * notional) + 1.0d, 1.0d / fixedCompounded.getSecond()) -
+            (1.0d + fixedCompounded.getThird());
+    return parSpread;
   }
 
   //-------------------------------------------------------------------------
@@ -371,13 +380,43 @@ public class DiscountingSwapProductPricer {
     ResolvedSwapLeg referenceLeg = swap.getLegs().get(0);
     Currency ccyReferenceLeg = referenceLeg.getCurrency();
     double convertedPv = presentValue(swap, ccyReferenceLeg, provider).getAmount();
-    double pvbp = legPricer.pvbp(referenceLeg, provider);
-    // Backward sweep
-    double convertedPvBar = -1d / pvbp;
-    double pvbpBar = convertedPv / (pvbp * pvbp);
-    PointSensitivityBuilder pvbpDr = legPricer.pvbpSensitivity(referenceLeg, provider);
     PointSensitivityBuilder convertedPvDr = presentValueSensitivity(swap, ccyReferenceLeg, provider);
-    return convertedPvDr.multipliedBy(convertedPvBar).combinedWith(pvbpDr.multipliedBy(pvbpBar));
+    if (referenceLeg.getPaymentPeriods().size() > 1) { // try multiperiod par-spread
+      double pvbp = legPricer.pvbp(referenceLeg, provider);
+      // Backward sweep
+      double convertedPvBar = -1d / pvbp;
+      double pvbpBar = convertedPv / (pvbp * pvbp);
+      PointSensitivityBuilder pvbpDr = legPricer.pvbpSensitivity(referenceLeg, provider);
+      return convertedPvDr.multipliedBy(convertedPvBar).combinedWith(pvbpDr.multipliedBy(pvbpBar));
+    }
+    PaymentPeriod firstPeriod = referenceLeg.getPaymentPeriods().get(0);
+    ArgChecker.isTrue(firstPeriod instanceof RatePaymentPeriod, "PaymentPeriod must be instance of RatePaymentPeriod");
+    RatePaymentPeriod payment = (RatePaymentPeriod) firstPeriod;
+    if (payment.getAccrualPeriods().size() == 1) { // no compounding
+      // PVBP
+      double pvbp = legPricer.pvbp(referenceLeg, provider);
+      // Backward sweep
+      double convertedPvBar = -1d / pvbp;
+      double pvbpBar = convertedPv / (pvbp * pvbp);
+      PointSensitivityBuilder pvbpDr = legPricer.pvbpSensitivity(referenceLeg, provider);
+      return convertedPvDr.multipliedBy(convertedPvBar).combinedWith(pvbpDr.multipliedBy(pvbpBar));
+    }
+    // try Compounding
+    Triple<Boolean, Integer, Double> fixedCompounded = checkFixedCompounded(referenceLeg);
+    ArgChecker.isTrue(fixedCompounded.getFirst(),
+        "Swap should have a fixed leg and for one payment it should be based on compunding witout spread.");
+    double df = provider.discountFactor(ccyReferenceLeg, referenceLeg.getPaymentPeriods().get(0).getPaymentDate());
+    PointSensitivityBuilder dfDr = provider.discountFactors(ccyReferenceLeg)
+        .zeroRatePointSensitivity(referenceLeg.getPaymentPeriods().get(0).getPaymentDate());    
+    double referenceConvertedPv = legPricer.presentValue(referenceLeg, provider).getAmount();
+    PointSensitivityBuilder referenceConvertedPvDr = legPricer.presentValueSensitivity(referenceLeg, provider);
+    double notional = ((RatePaymentPeriod) referenceLeg.getPaymentPeriods().get(0)).getNotional();
+    PointSensitivityBuilder DparSpreadDr = 
+        convertedPvDr.combinedWith(referenceConvertedPvDr.multipliedBy(-1)).multipliedBy(-1.0d / (df * notional))
+        .combinedWith(dfDr.multipliedBy((convertedPv - referenceConvertedPv) / (df * df * notional)))
+        .multipliedBy( 1.0d / fixedCompounded.getSecond() *
+        Math.pow(-(convertedPv - referenceConvertedPv) / (df * notional) + 1.0d, 1.0d / fixedCompounded.getSecond() - 1.0d));
+    return DparSpreadDr;
   }
 
   //-------------------------------------------------------------------------
@@ -458,10 +497,10 @@ public class DiscountingSwapProductPricer {
     return fixedLegs.get(0);
   }
   
-  // Checking if the leg is a fixed leg with one payment and fixed compounding
+  // Checks if the leg is a fixed leg with one payment and compounding
   // This type of leg is used in zero-coupon inflation swaps
   // When returning a 'true' for the first element, the second element is the number of periods which are used in 
-  //   par rate/spread computation.
+  //   par rate/spread computation and the third element is the common fixed rate
   private Triple<Boolean, Integer, Double> checkFixedCompounded(ResolvedSwapLeg leg) {
     if(leg.getPaymentPeriods().size() != 1) {
       return Triple.of(false, 0, 0.0d); // Only one period
@@ -483,6 +522,9 @@ public class DiscountingSwapProductPricer {
     for (int i = 0; i < nbAccrualPeriods; i++) {
       if (!(accrualPeriods.get(i).getRateComputation() instanceof FixedRateComputation)) {
         return Triple.of(false, 0, 0.0d); // Should be fixed period
+      }
+      if ((i > 0) && (((FixedRateComputation) accrualPeriods.get(i).getRateComputation()).getRate() != fixedRate)) {
+        return Triple.of(false, 0, 0.0d); // All fixed rates should be the same
       }
       fixedRate = ((FixedRateComputation) accrualPeriods.get(i).getRateComputation()).getRate();
       if (accrualPeriods.get(i).getSpread() != 0) {
