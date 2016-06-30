@@ -135,16 +135,18 @@ public final class InterpolatedNodalCurveDefinition
       CurveMetadata metadata,
       DoubleArray parameters) {
     // Year fraction -> dc.yf
-    DoubleArray nodeTimes = DoubleArray.of(getParameterCount(), i -> {
-      LocalDate nodeDate = ((DatedParameterMetadata) metadata.getParameterMetadata().get().get(i)).getDate();
-      return getDayCount().get().yearFraction(valuationDate, nodeDate);
-    });
-    // Month YearMonth.from(valuationDate).until(month, MONTHS)
-
-    DoubleArray nodeTimes2 = DoubleArray.of(getParameterCount(), i -> {
-      LocalDate nodeDate = ((DatedParameterMetadata) metadata.getParameterMetadata().get().get(i)).getDate();
-      return YearMonth.from(valuationDate).until(YearMonth.from(nodeDate), MONTHS);
-    });
+    DoubleArray nodeTimes = null;
+    if (metadata.getXValueType().equals(ValueType.YEAR_FRACTION)) {
+      nodeTimes = DoubleArray.of(getParameterCount(), i -> {
+        LocalDate nodeDate = ((DatedParameterMetadata) metadata.getParameterMetadata().get().get(i)).getDate();
+        return getDayCount().get().yearFraction(valuationDate, nodeDate);
+      });
+    } else {
+      nodeTimes = DoubleArray.of(getParameterCount(), i -> {
+        LocalDate nodeDate = ((DatedParameterMetadata) metadata.getParameterMetadata().get().get(i)).getDate();
+        return YearMonth.from(valuationDate).until(YearMonth.from(nodeDate), MONTHS);
+      });
+    }
     return InterpolatedNodalCurve.builder()
         .metadata(metadata)
         .xValues(nodeTimes)

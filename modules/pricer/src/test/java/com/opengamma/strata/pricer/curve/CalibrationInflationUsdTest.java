@@ -46,15 +46,16 @@ import com.opengamma.strata.market.curve.CurveGroupName;
 import com.opengamma.strata.market.curve.CurveMetadata;
 import com.opengamma.strata.market.curve.CurveName;
 import com.opengamma.strata.market.curve.CurveNode;
+import com.opengamma.strata.market.curve.CurveNodeDate;
 import com.opengamma.strata.market.curve.DefaultCurveMetadata;
 import com.opengamma.strata.market.curve.InterpolatedNodalCurveDefinition;
+import com.opengamma.strata.market.curve.interpolator.CurveExtrapolator;
+import com.opengamma.strata.market.curve.interpolator.CurveExtrapolators;
+import com.opengamma.strata.market.curve.interpolator.CurveInterpolator;
+import com.opengamma.strata.market.curve.interpolator.CurveInterpolators;
 import com.opengamma.strata.market.curve.node.FixedInflationSwapCurveNode;
 import com.opengamma.strata.market.curve.node.FixedOvernightSwapCurveNode;
 import com.opengamma.strata.market.curve.node.TermDepositCurveNode;
-import com.opengamma.strata.market.interpolator.CurveExtrapolator;
-import com.opengamma.strata.market.interpolator.CurveExtrapolators;
-import com.opengamma.strata.market.interpolator.CurveInterpolator;
-import com.opengamma.strata.market.interpolator.CurveInterpolators;
 import com.opengamma.strata.market.observable.IndexQuoteId;
 import com.opengamma.strata.market.observable.QuoteId;
 import com.opengamma.strata.pricer.deposit.DiscountingTermDepositProductPricer;
@@ -163,9 +164,14 @@ public class CalibrationInflationUsdTest {
       Period.ofYears(1), Period.ofYears(2), Period.ofYears(3), Period.ofYears(4), Period.ofYears(5)};
   static {
     for (int i = 0; i < CPI_NB_NODES; i++) {
-      CPI_NODES[i] = FixedInflationSwapCurveNode.of(
-          FixedInflationSwapTemplate.of(Tenor.of(CPI_TENORS[i]), FixedInflationSwapConventions.USD_FIXED_ZC_US_CPI),
-          QuoteId.of(StandardId.of(SCHEME, CPI_ID_VALUE[i])));
+      CPI_NODES[i] = FixedInflationSwapCurveNode.builder()
+          .template(FixedInflationSwapTemplate.of(Tenor.of(CPI_TENORS[i]), FixedInflationSwapConventions.USD_FIXED_ZC_US_CPI))
+          .rateId(QuoteId.of(StandardId.of(SCHEME, CPI_ID_VALUE[i])))
+          .date(CurveNodeDate.LAST_FIXING)
+          .build();
+//          FixedInflationSwapCurveNode.of(
+//          FixedInflationSwapTemplate.of(Tenor.of(CPI_TENORS[i]), FixedInflationSwapConventions.USD_FIXED_ZC_US_CPI),
+//          QuoteId.of(StandardId.of(SCHEME, CPI_ID_VALUE[i])));
     }
   }
 
@@ -279,9 +285,9 @@ public class CalibrationInflationUsdTest {
     }
     // ZC swaps
     for (int i = 0; i < CPI_NB_NODES; i++) {
-      MultiCurrencyAmount pvIrs = SWAP_PRICER.presentValue(
+      MultiCurrencyAmount pvInfl = SWAP_PRICER.presentValue(
           ((ResolvedSwapTrade) cpiTrades.get(i)).getProduct(), result);
-      assertEquals(pvIrs.getAmount(USD).getAmount(), 0.0, TOLERANCE_PV);
+      assertEquals(pvInfl.getAmount(USD).getAmount(), 0.0, TOLERANCE_PV);
     }
   }
 
