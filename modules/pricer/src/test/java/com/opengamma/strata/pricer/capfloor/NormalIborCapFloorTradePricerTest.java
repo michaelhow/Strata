@@ -56,7 +56,7 @@ public class NormalIborCapFloorTradePricerTest {
   private static final ZonedDateTime VALUATION = dateUtc(2015, 8, 20);
   private static final ImmutableRatesProvider RATES =
       IborCapletFloorletDataSet.createRatesProvider(VALUATION.toLocalDate());
-  private static final NormalIborCapletFloorletExpiryStrikeVolatilities VOLS = IborCapletFloorletDataSet
+  private static final NormalIborCapFloorExpiryStrikeVolatilities VOLS = IborCapletFloorletDataSet
       .createNormalVolatilitiesProvider(VALUATION, EUR_EURIBOR_6M);
   private static final TradeInfo TRADE_INFO = TradeInfo.builder().tradeDate(VALUATION.toLocalDate()).build();
   private static final Payment PREMIUM = Payment.of(EUR, -NOTIONAL_VALUE * 0.19, VALUATION.toLocalDate());
@@ -80,7 +80,7 @@ public class NormalIborCapFloorTradePricerTest {
   private static final ZonedDateTime VALUATION_PAY = dateUtc(2016, 4, 21);
   private static final ImmutableRatesProvider RATES_PAY =
       IborCapletFloorletDataSet.createRatesProvider(VALUATION_PAY.toLocalDate(), EUR_EURIBOR_6M, TIME_SERIES);
-  private static final NormalIborCapletFloorletExpiryStrikeVolatilities VOLS_PAY = IborCapletFloorletDataSet
+  private static final NormalIborCapFloorExpiryStrikeVolatilities VOLS_PAY = IborCapletFloorletDataSet
       .createNormalVolatilitiesProvider(VALUATION_PAY, EUR_EURIBOR_6M);
 
   private static final double TOL = 1.0e-13;

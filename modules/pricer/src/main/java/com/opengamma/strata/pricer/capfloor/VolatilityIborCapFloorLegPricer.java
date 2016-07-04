@@ -20,7 +20,7 @@ import com.opengamma.strata.product.capfloor.ResolvedIborCapFloorLeg;
  * One must apply {@code expand()} in order to price {@link IborCapFloorLeg}. 
  * <p>
  * The pricing methodologies are defined in individual implementations of the
- * volatilities, {@link IborCapletFloorletVolatilities}. 
+ * volatilities, {@link IborCapFloorVolatilities}. 
  */
 public class VolatilityIborCapFloorLegPricer {
 
@@ -59,7 +59,7 @@ public class VolatilityIborCapFloorLegPricer {
   public CurrencyAmount presentValue(
       ResolvedIborCapFloorLeg capFloorLeg,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     validate(ratesProvider, volatilities);
     return capFloorLeg.getCapletFloorletPeriods()
@@ -83,7 +83,7 @@ public class VolatilityIborCapFloorLegPricer {
   public CurrencyAmount presentValueDelta(
       ResolvedIborCapFloorLeg capFloorLeg,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     validate(ratesProvider, volatilities);
     return capFloorLeg.getCapletFloorletPeriods()
@@ -107,7 +107,7 @@ public class VolatilityIborCapFloorLegPricer {
   public CurrencyAmount presentValueGamma(
       ResolvedIborCapFloorLeg capFloorLeg,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     validate(ratesProvider, volatilities);
     return capFloorLeg.getCapletFloorletPeriods()
@@ -131,7 +131,7 @@ public class VolatilityIborCapFloorLegPricer {
   public CurrencyAmount presentValueTheta(
       ResolvedIborCapFloorLeg capFloorLeg,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     validate(ratesProvider, volatilities);
     return capFloorLeg.getCapletFloorletPeriods()
@@ -155,7 +155,7 @@ public class VolatilityIborCapFloorLegPricer {
   public PointSensitivityBuilder presentValueSensitivity(
       ResolvedIborCapFloorLeg capFloorLeg,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     validate(ratesProvider, volatilities);
     return capFloorLeg.getCapletFloorletPeriods()
@@ -179,7 +179,7 @@ public class VolatilityIborCapFloorLegPricer {
   public PointSensitivityBuilder presentValueSensitivityVolatility(
       ResolvedIborCapFloorLeg capFloorLeg,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     validate(ratesProvider, volatilities);
     return capFloorLeg.getCapletFloorletPeriods()
@@ -200,7 +200,7 @@ public class VolatilityIborCapFloorLegPricer {
   public CurrencyAmount currentCash(
       ResolvedIborCapFloorLeg capFloorLeg,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     validate(ratesProvider, volatilities);
     return capFloorLeg.getCapletFloorletPeriods()
@@ -212,7 +212,7 @@ public class VolatilityIborCapFloorLegPricer {
   }
 
   //-------------------------------------------------------------------------
-  private void validate(RatesProvider ratesProvider, IborCapletFloorletVolatilities volatilities) {
+  private void validate(RatesProvider ratesProvider, IborCapFloorVolatilities volatilities) {
     ArgChecker.isTrue(volatilities.getValuationDate().equals(ratesProvider.getValuationDate()),
         "volatility and rate data must be for the same date");
   }

@@ -16,25 +16,29 @@ import org.testng.annotations.Test;
 
 import com.opengamma.strata.basics.index.IborIndex;
 import com.opengamma.strata.data.MarketDataName;
-import com.opengamma.strata.market.param.CurrencyParameterSensitivity;
+import com.opengamma.strata.market.ValueType;
+import com.opengamma.strata.market.param.CurrencyParameterSensitivities;
+import com.opengamma.strata.market.param.ParameterMetadata;
+import com.opengamma.strata.market.param.ParameterPerturbation;
+import com.opengamma.strata.market.sensitivity.PointSensitivities;
 import com.opengamma.strata.product.common.PutCall;
 
 /**
- * Test {@link IborCapletFloorletVolatilities}.
+ * Test {@link IborCapFloorVolatilities}.
  */
 @Test
-public class IborCapletFloorletVolatilitiesTest {
+public class IborCapFloorVolatilitiesTest {
 
   private static final ZonedDateTime DATE_TIME = dateUtc(2015, 8, 27);
 
   //-------------------------------------------------------------------------
   public void test_defaultMethods() {
-    IborCapletFloorletVolatilities test = new TestIborCapletFloorletVolatilities();
+    IborCapFloorVolatilities test = new TestingIborCapFloorVolatilities();
     assertEquals(test.getValuationDate(), DATE_TIME.toLocalDate());
     assertEquals(test.volatility(DATE_TIME, 1, 2), 6d);
   }
 
-  static class TestIborCapletFloorletVolatilities implements IborCapletFloorletVolatilities {
+  static class TestingIborCapFloorVolatilities implements IborCapFloorVolatilities {
 
     @Override
     public IborIndex getIndex() {
@@ -54,12 +58,6 @@ public class IborCapletFloorletVolatilitiesTest {
     @Override
     public double volatility(double expiry, double strike, double forward) {
       return expiry * 2d;
-    }
-
-    @Override
-    public CurrencyParameterSensitivity parameterSensitivity(
-        IborCapletFloorletSensitivity pointSensitivity) {
-      throw new UnsupportedOperationException();
     }
 
     @Override
@@ -94,6 +92,46 @@ public class IborCapletFloorletVolatilitiesTest {
     @Override
     public double relativeTime(ZonedDateTime date) {
       return 3d;
+    }
+
+    @Override
+    public int getParameterCount() {
+      return 0;
+    }
+
+    @Override
+    public double getParameter(int parameterIndex) {
+      return 0;
+    }
+
+    @Override
+    public ParameterMetadata getParameterMetadata(int parameterIndex) {
+      return null;
+    }
+
+    @Override
+    public IborCapFloorVolatilitiesName getName() {
+      return null;
+    }
+
+    @Override
+    public ValueType getVolatilityType() {
+      return null;
+    }
+
+    @Override
+    public IborCapFloorVolatilities withParameter(int parameterIndex, double newValue) {
+      return null;
+    }
+
+    @Override
+    public IborCapFloorVolatilities withPerturbation(ParameterPerturbation perturbation) {
+      return null;
+    }
+
+    @Override
+    public CurrencyParameterSensitivities parameterSensitivity(PointSensitivities pointSensitivities) {
+      return null;
     }
 
   }

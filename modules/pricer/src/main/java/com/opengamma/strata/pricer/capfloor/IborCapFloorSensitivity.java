@@ -34,12 +34,12 @@ import com.opengamma.strata.market.sensitivity.PointSensitivity;
 import com.opengamma.strata.market.sensitivity.PointSensitivityBuilder;
 
 /**
- * Point sensitivity to Ibor caplet/floorlet implied parameter point.
+ * Point sensitivity to Ibor cap/floor implied parameter point.
  * <p>
  * Holds the sensitivity to the Ibor caplet/floorlet grid point.
  */
 @BeanDefinition(builderScope = "private")
-public final class IborCapletFloorletSensitivity
+public final class IborCapFloorSensitivity
     implements PointSensitivity, PointSensitivityBuilder, ImmutableBean, Serializable {
 
   /**
@@ -85,7 +85,7 @@ public final class IborCapletFloorletSensitivity
    * @param sensitivity  the value of the sensitivity
    * @return the point sensitivity object
    */
-  public static IborCapletFloorletSensitivity of(
+  public static IborCapFloorSensitivity of(
       IborIndex index,
       ZonedDateTime expiry,
       double strike,
@@ -93,7 +93,7 @@ public final class IborCapletFloorletSensitivity
       Currency sensitivityCurrency,
       double sensitivity) {
 
-    return new IborCapletFloorletSensitivity(index, expiry, strike, forward, sensitivityCurrency, sensitivity);
+    return new IborCapFloorSensitivity(index, expiry, strike, forward, sensitivityCurrency, sensitivity);
   }
 
   /**
@@ -108,34 +108,34 @@ public final class IborCapletFloorletSensitivity
    * @param sensitivity  the value of the sensitivity
    * @return the point sensitivity object
    */
-  public static IborCapletFloorletSensitivity of(
+  public static IborCapFloorSensitivity of(
       IborIndex index,
       ZonedDateTime expiry,
       double strike,
       double forward,
       double sensitivity) {
 
-    return new IborCapletFloorletSensitivity(index, expiry, strike, forward, index.getCurrency(), sensitivity);
+    return new IborCapFloorSensitivity(index, expiry, strike, forward, index.getCurrency(), sensitivity);
   }
 
   //-------------------------------------------------------------------------
   @Override
-  public IborCapletFloorletSensitivity withCurrency(Currency currency) {
+  public IborCapFloorSensitivity withCurrency(Currency currency) {
     if (this.currency.equals(currency)) {
       return this;
     }
-    return new IborCapletFloorletSensitivity(index, expiry, strike, forward, currency, sensitivity);
+    return new IborCapFloorSensitivity(index, expiry, strike, forward, currency, sensitivity);
   }
 
   @Override
-  public IborCapletFloorletSensitivity withSensitivity(double sensitivity) {
-    return new IborCapletFloorletSensitivity(index, expiry, strike, forward, currency, sensitivity);
+  public IborCapFloorSensitivity withSensitivity(double sensitivity) {
+    return new IborCapFloorSensitivity(index, expiry, strike, forward, currency, sensitivity);
   }
 
   @Override
   public int compareKey(PointSensitivity other) {
-    if (other instanceof IborCapletFloorletSensitivity) {
-      IborCapletFloorletSensitivity otherSwpt = (IborCapletFloorletSensitivity) other;
+    if (other instanceof IborCapFloorSensitivity) {
+      IborCapFloorSensitivity otherSwpt = (IborCapFloorSensitivity) other;
       return ComparisonChain.start()
           .compare(currency, otherSwpt.currency)
           .compare(expiry, otherSwpt.expiry)
@@ -148,23 +148,23 @@ public final class IborCapletFloorletSensitivity
   }
 
   @Override
-  public IborCapletFloorletSensitivity convertedTo(Currency resultCurrency, FxRateProvider rateProvider) {
-    return (IborCapletFloorletSensitivity) PointSensitivity.super.convertedTo(resultCurrency, rateProvider);
+  public IborCapFloorSensitivity convertedTo(Currency resultCurrency, FxRateProvider rateProvider) {
+    return (IborCapFloorSensitivity) PointSensitivity.super.convertedTo(resultCurrency, rateProvider);
   }
 
   //-------------------------------------------------------------------------
   @Override
-  public IborCapletFloorletSensitivity multipliedBy(double factor) {
-    return new IborCapletFloorletSensitivity(index, expiry, strike, forward, currency, sensitivity * factor);
+  public IborCapFloorSensitivity multipliedBy(double factor) {
+    return new IborCapFloorSensitivity(index, expiry, strike, forward, currency, sensitivity * factor);
   }
 
   @Override
-  public IborCapletFloorletSensitivity mapSensitivity(DoubleUnaryOperator operator) {
-    return new IborCapletFloorletSensitivity(index, expiry, strike, forward, currency, operator.applyAsDouble(sensitivity));
+  public IborCapFloorSensitivity mapSensitivity(DoubleUnaryOperator operator) {
+    return new IborCapFloorSensitivity(index, expiry, strike, forward, currency, operator.applyAsDouble(sensitivity));
   }
 
   @Override
-  public IborCapletFloorletSensitivity normalize() {
+  public IborCapFloorSensitivity normalize() {
     return this;
   }
 
@@ -174,22 +174,22 @@ public final class IborCapletFloorletSensitivity
   }
 
   @Override
-  public IborCapletFloorletSensitivity cloned() {
+  public IborCapFloorSensitivity cloned() {
     return this;
   }
 
   //------------------------- AUTOGENERATED START -------------------------
   ///CLOVER:OFF
   /**
-   * The meta-bean for {@code IborCapletFloorletSensitivity}.
+   * The meta-bean for {@code IborCapFloorSensitivity}.
    * @return the meta-bean, not null
    */
-  public static IborCapletFloorletSensitivity.Meta meta() {
-    return IborCapletFloorletSensitivity.Meta.INSTANCE;
+  public static IborCapFloorSensitivity.Meta meta() {
+    return IborCapFloorSensitivity.Meta.INSTANCE;
   }
 
   static {
-    JodaBeanUtils.registerMetaBean(IborCapletFloorletSensitivity.Meta.INSTANCE);
+    JodaBeanUtils.registerMetaBean(IborCapFloorSensitivity.Meta.INSTANCE);
   }
 
   /**
@@ -197,7 +197,7 @@ public final class IborCapletFloorletSensitivity
    */
   private static final long serialVersionUID = 1L;
 
-  private IborCapletFloorletSensitivity(
+  private IborCapFloorSensitivity(
       IborIndex index,
       ZonedDateTime expiry,
       double strike,
@@ -216,8 +216,8 @@ public final class IborCapletFloorletSensitivity
   }
 
   @Override
-  public IborCapletFloorletSensitivity.Meta metaBean() {
-    return IborCapletFloorletSensitivity.Meta.INSTANCE;
+  public IborCapFloorSensitivity.Meta metaBean() {
+    return IborCapFloorSensitivity.Meta.INSTANCE;
   }
 
   @Override
@@ -293,7 +293,7 @@ public final class IborCapletFloorletSensitivity
       return true;
     }
     if (obj != null && obj.getClass() == this.getClass()) {
-      IborCapletFloorletSensitivity other = (IborCapletFloorletSensitivity) obj;
+      IborCapFloorSensitivity other = (IborCapFloorSensitivity) obj;
       return JodaBeanUtils.equal(index, other.index) &&
           JodaBeanUtils.equal(expiry, other.expiry) &&
           JodaBeanUtils.equal(strike, other.strike) &&
@@ -319,7 +319,7 @@ public final class IborCapletFloorletSensitivity
   @Override
   public String toString() {
     StringBuilder buf = new StringBuilder(224);
-    buf.append("IborCapletFloorletSensitivity{");
+    buf.append("IborCapFloorSensitivity{");
     buf.append("index").append('=').append(index).append(',').append(' ');
     buf.append("expiry").append('=').append(expiry).append(',').append(' ');
     buf.append("strike").append('=').append(strike).append(',').append(' ');
@@ -332,7 +332,7 @@ public final class IborCapletFloorletSensitivity
 
   //-----------------------------------------------------------------------
   /**
-   * The meta-bean for {@code IborCapletFloorletSensitivity}.
+   * The meta-bean for {@code IborCapFloorSensitivity}.
    */
   public static final class Meta extends DirectMetaBean {
     /**
@@ -344,32 +344,32 @@ public final class IborCapletFloorletSensitivity
      * The meta-property for the {@code index} property.
      */
     private final MetaProperty<IborIndex> index = DirectMetaProperty.ofImmutable(
-        this, "index", IborCapletFloorletSensitivity.class, IborIndex.class);
+        this, "index", IborCapFloorSensitivity.class, IborIndex.class);
     /**
      * The meta-property for the {@code expiry} property.
      */
     private final MetaProperty<ZonedDateTime> expiry = DirectMetaProperty.ofImmutable(
-        this, "expiry", IborCapletFloorletSensitivity.class, ZonedDateTime.class);
+        this, "expiry", IborCapFloorSensitivity.class, ZonedDateTime.class);
     /**
      * The meta-property for the {@code strike} property.
      */
     private final MetaProperty<Double> strike = DirectMetaProperty.ofImmutable(
-        this, "strike", IborCapletFloorletSensitivity.class, Double.TYPE);
+        this, "strike", IborCapFloorSensitivity.class, Double.TYPE);
     /**
      * The meta-property for the {@code forward} property.
      */
     private final MetaProperty<Double> forward = DirectMetaProperty.ofImmutable(
-        this, "forward", IborCapletFloorletSensitivity.class, Double.TYPE);
+        this, "forward", IborCapFloorSensitivity.class, Double.TYPE);
     /**
      * The meta-property for the {@code currency} property.
      */
     private final MetaProperty<Currency> currency = DirectMetaProperty.ofImmutable(
-        this, "currency", IborCapletFloorletSensitivity.class, Currency.class);
+        this, "currency", IborCapFloorSensitivity.class, Currency.class);
     /**
      * The meta-property for the {@code sensitivity} property.
      */
     private final MetaProperty<Double> sensitivity = DirectMetaProperty.ofImmutable(
-        this, "sensitivity", IborCapletFloorletSensitivity.class, Double.TYPE);
+        this, "sensitivity", IborCapFloorSensitivity.class, Double.TYPE);
     /**
      * The meta-properties.
      */
@@ -408,13 +408,13 @@ public final class IborCapletFloorletSensitivity
     }
 
     @Override
-    public BeanBuilder<? extends IborCapletFloorletSensitivity> builder() {
-      return new IborCapletFloorletSensitivity.Builder();
+    public BeanBuilder<? extends IborCapFloorSensitivity> builder() {
+      return new IborCapFloorSensitivity.Builder();
     }
 
     @Override
-    public Class<? extends IborCapletFloorletSensitivity> beanType() {
-      return IborCapletFloorletSensitivity.class;
+    public Class<? extends IborCapFloorSensitivity> beanType() {
+      return IborCapFloorSensitivity.class;
     }
 
     @Override
@@ -476,17 +476,17 @@ public final class IborCapletFloorletSensitivity
     protected Object propertyGet(Bean bean, String propertyName, boolean quiet) {
       switch (propertyName.hashCode()) {
         case 100346066:  // index
-          return ((IborCapletFloorletSensitivity) bean).getIndex();
+          return ((IborCapFloorSensitivity) bean).getIndex();
         case -1289159373:  // expiry
-          return ((IborCapletFloorletSensitivity) bean).getExpiry();
+          return ((IborCapFloorSensitivity) bean).getExpiry();
         case -891985998:  // strike
-          return ((IborCapletFloorletSensitivity) bean).getStrike();
+          return ((IborCapFloorSensitivity) bean).getStrike();
         case -677145915:  // forward
-          return ((IborCapletFloorletSensitivity) bean).getForward();
+          return ((IborCapFloorSensitivity) bean).getForward();
         case 575402001:  // currency
-          return ((IborCapletFloorletSensitivity) bean).getCurrency();
+          return ((IborCapFloorSensitivity) bean).getCurrency();
         case 564403871:  // sensitivity
-          return ((IborCapletFloorletSensitivity) bean).getSensitivity();
+          return ((IborCapFloorSensitivity) bean).getSensitivity();
       }
       return super.propertyGet(bean, propertyName, quiet);
     }
@@ -504,9 +504,9 @@ public final class IborCapletFloorletSensitivity
 
   //-----------------------------------------------------------------------
   /**
-   * The bean-builder for {@code IborCapletFloorletSensitivity}.
+   * The bean-builder for {@code IborCapFloorSensitivity}.
    */
-  private static final class Builder extends DirectFieldsBeanBuilder<IborCapletFloorletSensitivity> {
+  private static final class Builder extends DirectFieldsBeanBuilder<IborCapFloorSensitivity> {
 
     private IborIndex index;
     private ZonedDateTime expiry;
@@ -594,8 +594,8 @@ public final class IborCapletFloorletSensitivity
     }
 
     @Override
-    public IborCapletFloorletSensitivity build() {
-      return new IborCapletFloorletSensitivity(
+    public IborCapFloorSensitivity build() {
+      return new IborCapFloorSensitivity(
           index,
           expiry,
           strike,
@@ -608,7 +608,7 @@ public final class IborCapletFloorletSensitivity
     @Override
     public String toString() {
       StringBuilder buf = new StringBuilder(224);
-      buf.append("IborCapletFloorletSensitivity.Builder{");
+      buf.append("IborCapFloorSensitivity.Builder{");
       buf.append("index").append('=').append(JodaBeanUtils.toString(index)).append(',').append(' ');
       buf.append("expiry").append('=').append(JodaBeanUtils.toString(expiry)).append(',').append(' ');
       buf.append("strike").append('=').append(JodaBeanUtils.toString(strike)).append(',').append(' ');

@@ -21,7 +21,7 @@ import com.opengamma.strata.product.swap.SwapLeg;
  * This function provides the ability to price {@link ResolvedIborCapFloor}. 
  * <p>
  * The pricing methodologies are defined in individual implementations of the
- * volatilities, {@link IborCapletFloorletVolatilities}. 
+ * volatilities, {@link IborCapFloorVolatilities}. 
  */
 public class VolatilityIborCapFloorProductPricer {
 
@@ -64,13 +64,13 @@ public class VolatilityIborCapFloorProductPricer {
    * 
    * @param capFloor  the cap/floor product
    * @param ratesProvider  the rates provider
-   * @param volatilities  the caplet/floorlet volatilities
+   * @param volatilities  the volatilities
    * @return the present value
    */
   public MultiCurrencyAmount presentValue(
       ResolvedIborCapFloor capFloor,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     CurrencyAmount pvCapFloorLeg =
         capFloorLegPricer.presentValue(capFloor.getCapFloorLeg(), ratesProvider, volatilities);
@@ -91,13 +91,13 @@ public class VolatilityIborCapFloorProductPricer {
    * 
    * @param capFloor  the cap/floor product
    * @param ratesProvider  the rates provider
-   * @param volatilities  the caplet/floorlet volatilities
+   * @param volatilities  the volatilities
    * @return the present value delta
    */
   public MultiCurrencyAmount presentValueDelta(
       ResolvedIborCapFloor capFloor,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     CurrencyAmount pvCapFloorLeg =
         capFloorLegPricer.presentValueDelta(capFloor.getCapFloorLeg(), ratesProvider, volatilities);
@@ -114,13 +114,13 @@ public class VolatilityIborCapFloorProductPricer {
    * 
    * @param capFloor  the cap/floor product
    * @param ratesProvider  the rates provider
-   * @param volatilities  the caplet/floorlet volatilities
+   * @param volatilities  the volatilities
    * @return the present value gamma
    */
   public MultiCurrencyAmount presentValueGamma(
       ResolvedIborCapFloor capFloor,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     CurrencyAmount pvCapFloorLeg =
         capFloorLegPricer.presentValueGamma(capFloor.getCapFloorLeg(), ratesProvider, volatilities);
@@ -137,13 +137,13 @@ public class VolatilityIborCapFloorProductPricer {
    * 
    * @param capFloor  the cap/floor product
    * @param ratesProvider  the rates provider
-   * @param volatilities  the caplet/floorlet volatilities
+   * @param volatilities  the volatilities
    * @return the present value theta
    */
   public MultiCurrencyAmount presentValueTheta(
       ResolvedIborCapFloor capFloor,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     CurrencyAmount pvCapFloorLeg =
         capFloorLegPricer.presentValueTheta(capFloor.getCapFloorLeg(), ratesProvider, volatilities);
@@ -157,13 +157,13 @@ public class VolatilityIborCapFloorProductPricer {
    * 
    * @param capFloor  the cap/floor product
    * @param ratesProvider  the rates provider
-   * @param volatilities  the caplet/floorlet volatilities
+   * @param volatilities  the volatilities
    * @return the present value sensitivity
    */
   public PointSensitivityBuilder presentValueSensitivity(
       ResolvedIborCapFloor capFloor,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     PointSensitivityBuilder pvSensiCapFloorLeg =
         capFloorLegPricer.presentValueSensitivity(capFloor.getCapFloorLeg(), ratesProvider, volatilities);
@@ -183,13 +183,13 @@ public class VolatilityIborCapFloorProductPricer {
    * 
    * @param capFloor  the cap/floor product
    * @param ratesProvider  the rates provider
-   * @param volatilities  the caplet/floorlet volatilities
+   * @param volatilities  the volatilities
    * @return the present value sensitivity
    */
   public PointSensitivityBuilder presentValueSensitivityVolatility(
       ResolvedIborCapFloor capFloor,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     return capFloorLegPricer.presentValueSensitivityVolatility(
         capFloor.getCapFloorLeg(), ratesProvider, volatilities);
@@ -201,13 +201,13 @@ public class VolatilityIborCapFloorProductPricer {
    * 
    * @param capFloor  the cap/floor product
    * @param ratesProvider  the rates provider
-   * @param volatilities  the caplet/floorlet volatilities
+   * @param volatilities  the volatilities
    * @return the currency exposure
    */
   public MultiCurrencyAmount currencyExposure(
       ResolvedIborCapFloor capFloor,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     CurrencyAmount ceCapFloorLeg =
         capFloorLegPricer.presentValue(capFloor.getCapFloorLeg(), ratesProvider, volatilities);
@@ -223,13 +223,13 @@ public class VolatilityIborCapFloorProductPricer {
    * 
    * @param capFloor  the cap/floor product
    * @param ratesProvider  the rates provider
-   * @param volatilities  the caplet/floorlet volatilities
+   * @param volatilities  the volatilities
    * @return the current cash
    */
   public MultiCurrencyAmount currentCash(
       ResolvedIborCapFloor capFloor,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     CurrencyAmount ccCapFloorLeg =
         capFloorLegPricer.currentCash(capFloor.getCapFloorLeg(), ratesProvider, volatilities);

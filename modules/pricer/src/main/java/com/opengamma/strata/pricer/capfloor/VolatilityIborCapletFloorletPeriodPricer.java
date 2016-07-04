@@ -16,7 +16,7 @@ import com.opengamma.strata.product.common.PutCall;
 /**
  * Pricer for caplet/floorlet based on volatilities.
  * <p>
- * The pricing methodologies are defined in individual implementations of the volatilities, {@link IborCapletFloorletVolatilities}. 
+ * The pricing methodologies are defined in individual implementations of the volatilities, {@link IborCapFloorVolatilities}. 
  * <p>
  * The value of the caplet/floorlet after expiry is a fixed payoff amount. The value is zero if valuation date is 
  * after payment date of the caplet/floorlet.
@@ -45,7 +45,7 @@ public class VolatilityIborCapletFloorletPeriodPricer {
   public CurrencyAmount presentValue(
       IborCapletFloorletPeriod period,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     validate(volatilities);
     Currency currency = period.getCurrency();
@@ -79,7 +79,7 @@ public class VolatilityIborCapletFloorletPeriodPricer {
   public double impliedVolatility(
       IborCapletFloorletPeriod period,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     validate(volatilities);
     double expiry = volatilities.relativeTime(period.getFixingDateTime());
@@ -103,7 +103,7 @@ public class VolatilityIborCapletFloorletPeriodPricer {
   public CurrencyAmount presentValueDelta(
       IborCapletFloorletPeriod period,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     validate(volatilities);
     double expiry = volatilities.relativeTime(period.getFixingDateTime());
@@ -135,7 +135,7 @@ public class VolatilityIborCapletFloorletPeriodPricer {
   public CurrencyAmount presentValueGamma(
       IborCapletFloorletPeriod period,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     validate(volatilities);
     double expiry = volatilities.relativeTime(period.getFixingDateTime());
@@ -168,7 +168,7 @@ public class VolatilityIborCapletFloorletPeriodPricer {
   public CurrencyAmount presentValueTheta(
       IborCapletFloorletPeriod period,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     validate(volatilities);
     double expiry = volatilities.relativeTime(period.getFixingDateTime());
@@ -200,7 +200,7 @@ public class VolatilityIborCapletFloorletPeriodPricer {
   public PointSensitivityBuilder presentValueSensitivity(
       IborCapletFloorletPeriod period,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     validate(volatilities);
     Currency currency = period.getCurrency();
@@ -242,7 +242,7 @@ public class VolatilityIborCapletFloorletPeriodPricer {
   public PointSensitivityBuilder presentValueSensitivityVolatility(
       IborCapletFloorletPeriod period,
       RatesProvider ratesProvider,
-      IborCapletFloorletVolatilities volatilities) {
+      IborCapFloorVolatilities volatilities) {
 
     validate(volatilities);
     double expiry = volatilities.relativeTime(period.getFixingDateTime());
@@ -256,7 +256,7 @@ public class VolatilityIborCapletFloorletPeriodPricer {
     PutCall putCall = period.getPutCall();
     double df = ratesProvider.discountFactor(currency, period.getPaymentDate());
     double vega = df * period.getYearFraction() * volatilities.priceVega(expiry, putCall, strike, forward, volatility);
-    return IborCapletFloorletSensitivity.of(
+    return IborCapFloorSensitivity.of(
         period.getIndex(),
         period.getFixingDateTime(),
         strike,
@@ -273,7 +273,7 @@ public class VolatilityIborCapletFloorletPeriodPricer {
    * 
    * @param volatilities  the volatilities
    */
-  protected void validate(IborCapletFloorletVolatilities volatilities) {
+  protected void validate(IborCapFloorVolatilities volatilities) {
   }
 
 }

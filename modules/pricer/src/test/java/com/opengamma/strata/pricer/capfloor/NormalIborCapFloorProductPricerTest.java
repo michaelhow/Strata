@@ -53,7 +53,7 @@ public class NormalIborCapFloorProductPricerTest {
   private static final ZonedDateTime VALUATION = dateUtc(2015, 8, 20);
   private static final ImmutableRatesProvider RATES =
       IborCapletFloorletDataSet.createRatesProvider(VALUATION.toLocalDate());
-  private static final NormalIborCapletFloorletExpiryStrikeVolatilities VOLS = IborCapletFloorletDataSet
+  private static final NormalIborCapFloorExpiryStrikeVolatilities VOLS = IborCapletFloorletDataSet
       .createNormalVolatilitiesProvider(VALUATION, EUR_EURIBOR_6M);
   //   valuation at payment of 1st period
   private static final double OBS_INDEX_1 = 0.013;
@@ -65,7 +65,7 @@ public class NormalIborCapFloorProductPricerTest {
   private static final ZonedDateTime VALUATION_PAY = dateUtc(2016, 4, 21);
   private static final ImmutableRatesProvider RATES_PAY =
       IborCapletFloorletDataSet.createRatesProvider(VALUATION_PAY.toLocalDate(), EUR_EURIBOR_6M, TIME_SERIES);
-  private static final NormalIborCapletFloorletExpiryStrikeVolatilities VOLS_PAY = IborCapletFloorletDataSet
+  private static final NormalIborCapFloorExpiryStrikeVolatilities VOLS_PAY = IborCapletFloorletDataSet
       .createNormalVolatilitiesProvider(VALUATION_PAY, EUR_EURIBOR_6M);
 
   private static final double TOL = 1.0e-13;

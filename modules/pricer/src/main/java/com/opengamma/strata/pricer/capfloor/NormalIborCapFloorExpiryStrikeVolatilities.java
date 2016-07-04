@@ -7,8 +7,6 @@ package com.opengamma.strata.pricer.capfloor;
 
 import java.io.Serializable;
 import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -19,6 +17,7 @@ import org.joda.beans.Bean;
 import org.joda.beans.BeanBuilder;
 import org.joda.beans.BeanDefinition;
 import org.joda.beans.ImmutableBean;
+import org.joda.beans.ImmutableConstructor;
 import org.joda.beans.JodaBeanUtils;
 import org.joda.beans.MetaProperty;
 import org.joda.beans.Property;
@@ -32,28 +31,30 @@ import com.opengamma.strata.basics.date.DayCount;
 import com.opengamma.strata.basics.index.IborIndex;
 import com.opengamma.strata.collect.ArgChecker;
 import com.opengamma.strata.data.MarketDataName;
+import com.opengamma.strata.market.ValueType;
+import com.opengamma.strata.market.param.CurrencyParameterSensitivities;
 import com.opengamma.strata.market.param.CurrencyParameterSensitivity;
+import com.opengamma.strata.market.param.ParameterMetadata;
+import com.opengamma.strata.market.param.ParameterPerturbation;
 import com.opengamma.strata.market.param.UnitParameterSensitivity;
+import com.opengamma.strata.market.sensitivity.PointSensitivities;
+import com.opengamma.strata.market.sensitivity.PointSensitivity;
+import com.opengamma.strata.market.surface.InterpolatedNodalSurface;
 import com.opengamma.strata.market.surface.Surface;
-import com.opengamma.strata.pricer.impl.option.BlackFormulaRepository;
+import com.opengamma.strata.market.surface.SurfaceInfoType;
+import com.opengamma.strata.market.surface.Surfaces;
+import com.opengamma.strata.pricer.impl.option.NormalFormulaRepository;
 import com.opengamma.strata.product.common.PutCall;
 
 /**
- * Volatility for Ibor caplet/floorlet in the log-normal or Black model based on a surface.
- * <p> 
+ * Volatility for Ibor cap/floor in the normal or Bachelier model based on a surface.
+ * <p>
  * The volatility is represented by a surface on the expiry and strike dimensions.
  */
 @BeanDefinition(builderScope = "private")
-public final class BlackIborCapletFloorletExpiryStrikeVolatilities
-    implements BlackIborCapletFloorletVolatilities, ImmutableBean, Serializable {
+public final class NormalIborCapFloorExpiryStrikeVolatilities
+    implements NormalIborCapFloorVolatilities, ImmutableBean, Serializable {
 
-  /**
-   * The Black volatility surface.
-   * <p>
-   * The order of the dimensions is expiry/strike.
-   */
-  @PropertyDefinition(validate = "notNull")
-  private final Surface surface;
   /**
    * The Ibor index.
    * <p>
@@ -62,66 +63,115 @@ public final class BlackIborCapletFloorletExpiryStrikeVolatilities
   @PropertyDefinition(validate = "notNull", overrideGet = true)
   private final IborIndex index;
   /**
-   * The day count applicable to the model.
-   */
-  @PropertyDefinition(validate = "notNull")
-  private final DayCount dayCount;
-  /**
    * The valuation date-time.
    * <p>
    * The volatilities are calibrated for this date-time.
    */
   @PropertyDefinition(validate = "notNull", overrideGet = true)
   private final ZonedDateTime valuationDateTime;
+  /**
+   * The normal volatility surface.
+   * <p>
+   * The x-value of the surface is the expiry, as a year fraction.
+   * The y-value of the surface is the strike.
+   */
+  @PropertyDefinition(validate = "notNull")
+  private final Surface surface;
+  /**
+   * The day count convention of the surface.
+   */
+  private final DayCount dayCount;  // cached, not a property
 
   //-------------------------------------------------------------------------
   /**
    * Obtains an instance from the implied volatility surface and the date-time for which it is valid.
+   * <p>
+   * The surface is specified by an instance of {@link Surface}, such as {@link InterpolatedNodalSurface}.
+   * The surface must contain the correct metadata:
+   * <ul>
+   * <li>The x-value type must be {@link ValueType#YEAR_FRACTION}
+   * <li>The y-value type must be {@link ValueType#STRIKE}
+   * <li>The z-value type must be {@link ValueType#NORMAL_VOLATILITY}
+   * <li>The day count must be set in the additional information using {@link SurfaceInfoType#DAY_COUNT}
+   * </ul>
+   * Suitable surface metadata can be created using
+   * {@link Surfaces#iborCapFloorNormalExpiryStrike(String, DayCount)}.
    * 
-   * @param surface  the implied volatility surface
    * @param index  the Ibor index for which the data is valid
    * @param valuationDateTime  the valuation date-time
-   * @param dayCount  the day count applicable to the model
+   * @param surface  the implied volatility surface
    * @return the volatilities
    */
-  public static BlackIborCapletFloorletExpiryStrikeVolatilities of(
-      Surface surface,
+  public static NormalIborCapFloorExpiryStrikeVolatilities of(
       IborIndex index,
       ZonedDateTime valuationDateTime,
-      DayCount dayCount) {
+      Surface surface) {
 
-    return new BlackIborCapletFloorletExpiryStrikeVolatilities(surface, index, dayCount, valuationDateTime);
+    return new NormalIborCapFloorExpiryStrikeVolatilities(index, valuationDateTime, surface);
   }
 
-  /**
-   * Obtains an instance from the implied volatility surface and the date, time and zone for which it is valid.
-   * 
-   * @param surface  the implied volatility surface
-   * @param index  the Ibor index for which the data is valid
-   * @param valuationDate  the valuation date
-   * @param valuationTime  the valuation time
-   * @param valuationZone  the valuation time zone
-   * @param dayCount  the day count applicable to the model
-   * @return the volatilities
-   */
-  public static BlackIborCapletFloorletExpiryStrikeVolatilities of(
-      Surface surface,
+  @ImmutableConstructor
+  private NormalIborCapFloorExpiryStrikeVolatilities(
       IborIndex index,
-      LocalDate valuationDate,
-      LocalTime valuationTime,
-      ZoneId valuationZone,
-      DayCount dayCount) {
+      ZonedDateTime valuationDateTime,
+      Surface surface) {
 
-    return of(surface, index, valuationDate.atTime(valuationTime).atZone(valuationZone), dayCount);
+    ArgChecker.notNull(valuationDateTime, "valuationDateTime");
+    ArgChecker.notNull(surface, "surface");
+    surface.getMetadata().getXValueType().checkEquals(
+        ValueType.YEAR_FRACTION, "Incorrect x-value type for Normal volatilities");
+    surface.getMetadata().getYValueType().checkEquals(
+        ValueType.STRIKE, "Incorrect y-value type for Normal volatilities");
+    surface.getMetadata().getZValueType().checkEquals(
+        ValueType.NORMAL_VOLATILITY, "Incorrect z-value type for Normal volatilities");
+    DayCount dayCount = surface.getMetadata().findInfo(SurfaceInfoType.DAY_COUNT)
+        .orElseThrow(() -> new IllegalArgumentException("Incorrect surface metadata, missing DayCount"));
+
+    this.index = index;
+    this.valuationDateTime = valuationDateTime;
+    this.surface = surface;
+    this.dayCount = dayCount;
   }
 
   //-------------------------------------------------------------------------
+  @Override
+  public IborCapFloorVolatilitiesName getName() {
+    return IborCapFloorVolatilitiesName.of(surface.getName().getName());
+  }
+
   @Override
   public <T> Optional<T> findData(MarketDataName<T> name) {
     if (surface.getName().equals(name)) {
       return Optional.of(name.getMarketDataType().cast(surface));
     }
     return Optional.empty();
+  }
+
+  @Override
+  public int getParameterCount() {
+    return surface.getParameterCount();
+  }
+
+  @Override
+  public double getParameter(int parameterIndex) {
+    return surface.getParameter(parameterIndex);
+  }
+
+  @Override
+  public ParameterMetadata getParameterMetadata(int parameterIndex) {
+    return surface.getParameterMetadata(parameterIndex);
+  }
+
+  @Override
+  public NormalIborCapFloorExpiryStrikeVolatilities withParameter(int parameterIndex, double newValue) {
+    return new NormalIborCapFloorExpiryStrikeVolatilities(
+        index, valuationDateTime, surface.withParameter(parameterIndex, newValue));
+  }
+
+  @Override
+  public NormalIborCapFloorExpiryStrikeVolatilities withPerturbation(ParameterPerturbation perturbation) {
+    return new NormalIborCapFloorExpiryStrikeVolatilities(
+        index, valuationDateTime, surface.withPerturbation(perturbation));
   }
 
   //-------------------------------------------------------------------------
@@ -131,7 +181,18 @@ public final class BlackIborCapletFloorletExpiryStrikeVolatilities
   }
 
   @Override
-  public CurrencyParameterSensitivity parameterSensitivity(IborCapletFloorletSensitivity point) {
+  public CurrencyParameterSensitivities parameterSensitivity(PointSensitivities pointSensitivities) {
+    CurrencyParameterSensitivities sens = CurrencyParameterSensitivities.empty();
+    for (PointSensitivity point : pointSensitivities.getSensitivities()) {
+      if (point instanceof IborCapFloorSensitivity) {
+        IborCapFloorSensitivity pt = (IborCapFloorSensitivity) point;
+        sens = sens.combinedWith(parameterSensitivity(pt));
+      }
+    }
+    return sens;
+  }
+
+  private CurrencyParameterSensitivity parameterSensitivity(IborCapFloorSensitivity point) {
     ArgChecker.isTrue(point.getIndex().equals(index),
         "Ibor index of provider must be the same as Ibor index of point sensitivity");
     double expiry = relativeTime(point.getExpiry());
@@ -142,28 +203,28 @@ public final class BlackIborCapletFloorletExpiryStrikeVolatilities
 
   //-------------------------------------------------------------------------
   @Override
-  public double price(double expiry, PutCall putCall, double strike, double forwardRate, double volatility) {
-    return BlackFormulaRepository.price(forwardRate, strike, expiry, volatility, putCall.isCall());
+  public double price(double expiry, PutCall putCall, double strike, double forward, double volatility) {
+    return NormalFormulaRepository.price(forward, strike, expiry, volatility, putCall);
   }
 
   @Override
   public double priceDelta(double expiry, PutCall putCall, double strike, double forward, double volatility) {
-    return BlackFormulaRepository.delta(forward, strike, expiry, volatility, putCall.isCall());
+    return NormalFormulaRepository.delta(forward, strike, expiry, volatility, putCall);
   }
 
   @Override
   public double priceGamma(double expiry, PutCall putCall, double strike, double forward, double volatility) {
-    return BlackFormulaRepository.gamma(forward, strike, expiry, volatility);
+    return NormalFormulaRepository.gamma(forward, strike, expiry, volatility, putCall);
   }
 
   @Override
   public double priceTheta(double expiry, PutCall putCall, double strike, double forward, double volatility) {
-    return BlackFormulaRepository.driftlessTheta(forward, strike, expiry, volatility);
+    return NormalFormulaRepository.theta(forward, strike, expiry, volatility, putCall);
   }
 
   @Override
   public double priceVega(double expiry, PutCall putCall, double strike, double forward, double volatility) {
-    return BlackFormulaRepository.vega(forward, strike, expiry, volatility);
+    return NormalFormulaRepository.vega(forward, strike, expiry, volatility, putCall);
   }
 
   //-------------------------------------------------------------------------
@@ -178,15 +239,15 @@ public final class BlackIborCapletFloorletExpiryStrikeVolatilities
   //------------------------- AUTOGENERATED START -------------------------
   ///CLOVER:OFF
   /**
-   * The meta-bean for {@code BlackIborCapletFloorletExpiryStrikeVolatilities}.
+   * The meta-bean for {@code NormalIborCapFloorExpiryStrikeVolatilities}.
    * @return the meta-bean, not null
    */
-  public static BlackIborCapletFloorletExpiryStrikeVolatilities.Meta meta() {
-    return BlackIborCapletFloorletExpiryStrikeVolatilities.Meta.INSTANCE;
+  public static NormalIborCapFloorExpiryStrikeVolatilities.Meta meta() {
+    return NormalIborCapFloorExpiryStrikeVolatilities.Meta.INSTANCE;
   }
 
   static {
-    JodaBeanUtils.registerMetaBean(BlackIborCapletFloorletExpiryStrikeVolatilities.Meta.INSTANCE);
+    JodaBeanUtils.registerMetaBean(NormalIborCapFloorExpiryStrikeVolatilities.Meta.INSTANCE);
   }
 
   /**
@@ -194,24 +255,9 @@ public final class BlackIborCapletFloorletExpiryStrikeVolatilities
    */
   private static final long serialVersionUID = 1L;
 
-  private BlackIborCapletFloorletExpiryStrikeVolatilities(
-      Surface surface,
-      IborIndex index,
-      DayCount dayCount,
-      ZonedDateTime valuationDateTime) {
-    JodaBeanUtils.notNull(surface, "surface");
-    JodaBeanUtils.notNull(index, "index");
-    JodaBeanUtils.notNull(dayCount, "dayCount");
-    JodaBeanUtils.notNull(valuationDateTime, "valuationDateTime");
-    this.surface = surface;
-    this.index = index;
-    this.dayCount = dayCount;
-    this.valuationDateTime = valuationDateTime;
-  }
-
   @Override
-  public BlackIborCapletFloorletExpiryStrikeVolatilities.Meta metaBean() {
-    return BlackIborCapletFloorletExpiryStrikeVolatilities.Meta.INSTANCE;
+  public NormalIborCapFloorExpiryStrikeVolatilities.Meta metaBean() {
+    return NormalIborCapFloorExpiryStrikeVolatilities.Meta.INSTANCE;
   }
 
   @Override
@@ -222,17 +268,6 @@ public final class BlackIborCapletFloorletExpiryStrikeVolatilities
   @Override
   public Set<String> propertyNames() {
     return metaBean().metaPropertyMap().keySet();
-  }
-
-  //-----------------------------------------------------------------------
-  /**
-   * Gets the Black volatility surface.
-   * <p>
-   * The order of the dimensions is expiry/strike.
-   * @return the value of the property, not null
-   */
-  public Surface getSurface() {
-    return surface;
   }
 
   //-----------------------------------------------------------------------
@@ -249,15 +284,6 @@ public final class BlackIborCapletFloorletExpiryStrikeVolatilities
 
   //-----------------------------------------------------------------------
   /**
-   * Gets the day count applicable to the model.
-   * @return the value of the property, not null
-   */
-  public DayCount getDayCount() {
-    return dayCount;
-  }
-
-  //-----------------------------------------------------------------------
-  /**
    * Gets the valuation date-time.
    * <p>
    * The volatilities are calibrated for this date-time.
@@ -269,17 +295,28 @@ public final class BlackIborCapletFloorletExpiryStrikeVolatilities
   }
 
   //-----------------------------------------------------------------------
+  /**
+   * Gets the normal volatility surface.
+   * <p>
+   * The x-value of the surface is the expiry, as a year fraction.
+   * The y-value of the surface is the strike.
+   * @return the value of the property, not null
+   */
+  public Surface getSurface() {
+    return surface;
+  }
+
+  //-----------------------------------------------------------------------
   @Override
   public boolean equals(Object obj) {
     if (obj == this) {
       return true;
     }
     if (obj != null && obj.getClass() == this.getClass()) {
-      BlackIborCapletFloorletExpiryStrikeVolatilities other = (BlackIborCapletFloorletExpiryStrikeVolatilities) obj;
-      return JodaBeanUtils.equal(surface, other.surface) &&
-          JodaBeanUtils.equal(index, other.index) &&
-          JodaBeanUtils.equal(dayCount, other.dayCount) &&
-          JodaBeanUtils.equal(valuationDateTime, other.valuationDateTime);
+      NormalIborCapFloorExpiryStrikeVolatilities other = (NormalIborCapFloorExpiryStrikeVolatilities) obj;
+      return JodaBeanUtils.equal(index, other.index) &&
+          JodaBeanUtils.equal(valuationDateTime, other.valuationDateTime) &&
+          JodaBeanUtils.equal(surface, other.surface);
     }
     return false;
   }
@@ -287,28 +324,26 @@ public final class BlackIborCapletFloorletExpiryStrikeVolatilities
   @Override
   public int hashCode() {
     int hash = getClass().hashCode();
-    hash = hash * 31 + JodaBeanUtils.hashCode(surface);
     hash = hash * 31 + JodaBeanUtils.hashCode(index);
-    hash = hash * 31 + JodaBeanUtils.hashCode(dayCount);
     hash = hash * 31 + JodaBeanUtils.hashCode(valuationDateTime);
+    hash = hash * 31 + JodaBeanUtils.hashCode(surface);
     return hash;
   }
 
   @Override
   public String toString() {
-    StringBuilder buf = new StringBuilder(160);
-    buf.append("BlackIborCapletFloorletExpiryStrikeVolatilities{");
-    buf.append("surface").append('=').append(surface).append(',').append(' ');
+    StringBuilder buf = new StringBuilder(128);
+    buf.append("NormalIborCapFloorExpiryStrikeVolatilities{");
     buf.append("index").append('=').append(index).append(',').append(' ');
-    buf.append("dayCount").append('=').append(dayCount).append(',').append(' ');
-    buf.append("valuationDateTime").append('=').append(JodaBeanUtils.toString(valuationDateTime));
+    buf.append("valuationDateTime").append('=').append(valuationDateTime).append(',').append(' ');
+    buf.append("surface").append('=').append(JodaBeanUtils.toString(surface));
     buf.append('}');
     return buf.toString();
   }
 
   //-----------------------------------------------------------------------
   /**
-   * The meta-bean for {@code BlackIborCapletFloorletExpiryStrikeVolatilities}.
+   * The meta-bean for {@code NormalIborCapFloorExpiryStrikeVolatilities}.
    */
   public static final class Meta extends DirectMetaBean {
     /**
@@ -317,34 +352,28 @@ public final class BlackIborCapletFloorletExpiryStrikeVolatilities
     static final Meta INSTANCE = new Meta();
 
     /**
-     * The meta-property for the {@code surface} property.
-     */
-    private final MetaProperty<Surface> surface = DirectMetaProperty.ofImmutable(
-        this, "surface", BlackIborCapletFloorletExpiryStrikeVolatilities.class, Surface.class);
-    /**
      * The meta-property for the {@code index} property.
      */
     private final MetaProperty<IborIndex> index = DirectMetaProperty.ofImmutable(
-        this, "index", BlackIborCapletFloorletExpiryStrikeVolatilities.class, IborIndex.class);
-    /**
-     * The meta-property for the {@code dayCount} property.
-     */
-    private final MetaProperty<DayCount> dayCount = DirectMetaProperty.ofImmutable(
-        this, "dayCount", BlackIborCapletFloorletExpiryStrikeVolatilities.class, DayCount.class);
+        this, "index", NormalIborCapFloorExpiryStrikeVolatilities.class, IborIndex.class);
     /**
      * The meta-property for the {@code valuationDateTime} property.
      */
     private final MetaProperty<ZonedDateTime> valuationDateTime = DirectMetaProperty.ofImmutable(
-        this, "valuationDateTime", BlackIborCapletFloorletExpiryStrikeVolatilities.class, ZonedDateTime.class);
+        this, "valuationDateTime", NormalIborCapFloorExpiryStrikeVolatilities.class, ZonedDateTime.class);
+    /**
+     * The meta-property for the {@code surface} property.
+     */
+    private final MetaProperty<Surface> surface = DirectMetaProperty.ofImmutable(
+        this, "surface", NormalIborCapFloorExpiryStrikeVolatilities.class, Surface.class);
     /**
      * The meta-properties.
      */
     private final Map<String, MetaProperty<?>> metaPropertyMap$ = new DirectMetaPropertyMap(
         this, null,
-        "surface",
         "index",
-        "dayCount",
-        "valuationDateTime");
+        "valuationDateTime",
+        "surface");
 
     /**
      * Restricted constructor.
@@ -355,26 +384,24 @@ public final class BlackIborCapletFloorletExpiryStrikeVolatilities
     @Override
     protected MetaProperty<?> metaPropertyGet(String propertyName) {
       switch (propertyName.hashCode()) {
-        case -1853231955:  // surface
-          return surface;
         case 100346066:  // index
           return index;
-        case 1905311443:  // dayCount
-          return dayCount;
         case -949589828:  // valuationDateTime
           return valuationDateTime;
+        case -1853231955:  // surface
+          return surface;
       }
       return super.metaPropertyGet(propertyName);
     }
 
     @Override
-    public BeanBuilder<? extends BlackIborCapletFloorletExpiryStrikeVolatilities> builder() {
-      return new BlackIborCapletFloorletExpiryStrikeVolatilities.Builder();
+    public BeanBuilder<? extends NormalIborCapFloorExpiryStrikeVolatilities> builder() {
+      return new NormalIborCapFloorExpiryStrikeVolatilities.Builder();
     }
 
     @Override
-    public Class<? extends BlackIborCapletFloorletExpiryStrikeVolatilities> beanType() {
-      return BlackIborCapletFloorletExpiryStrikeVolatilities.class;
+    public Class<? extends NormalIborCapFloorExpiryStrikeVolatilities> beanType() {
+      return NormalIborCapFloorExpiryStrikeVolatilities.class;
     }
 
     @Override
@@ -384,27 +411,11 @@ public final class BlackIborCapletFloorletExpiryStrikeVolatilities
 
     //-----------------------------------------------------------------------
     /**
-     * The meta-property for the {@code surface} property.
-     * @return the meta-property, not null
-     */
-    public MetaProperty<Surface> surface() {
-      return surface;
-    }
-
-    /**
      * The meta-property for the {@code index} property.
      * @return the meta-property, not null
      */
     public MetaProperty<IborIndex> index() {
       return index;
-    }
-
-    /**
-     * The meta-property for the {@code dayCount} property.
-     * @return the meta-property, not null
-     */
-    public MetaProperty<DayCount> dayCount() {
-      return dayCount;
     }
 
     /**
@@ -415,18 +426,24 @@ public final class BlackIborCapletFloorletExpiryStrikeVolatilities
       return valuationDateTime;
     }
 
+    /**
+     * The meta-property for the {@code surface} property.
+     * @return the meta-property, not null
+     */
+    public MetaProperty<Surface> surface() {
+      return surface;
+    }
+
     //-----------------------------------------------------------------------
     @Override
     protected Object propertyGet(Bean bean, String propertyName, boolean quiet) {
       switch (propertyName.hashCode()) {
-        case -1853231955:  // surface
-          return ((BlackIborCapletFloorletExpiryStrikeVolatilities) bean).getSurface();
         case 100346066:  // index
-          return ((BlackIborCapletFloorletExpiryStrikeVolatilities) bean).getIndex();
-        case 1905311443:  // dayCount
-          return ((BlackIborCapletFloorletExpiryStrikeVolatilities) bean).getDayCount();
+          return ((NormalIborCapFloorExpiryStrikeVolatilities) bean).getIndex();
         case -949589828:  // valuationDateTime
-          return ((BlackIborCapletFloorletExpiryStrikeVolatilities) bean).getValuationDateTime();
+          return ((NormalIborCapFloorExpiryStrikeVolatilities) bean).getValuationDateTime();
+        case -1853231955:  // surface
+          return ((NormalIborCapFloorExpiryStrikeVolatilities) bean).getSurface();
       }
       return super.propertyGet(bean, propertyName, quiet);
     }
@@ -444,14 +461,13 @@ public final class BlackIborCapletFloorletExpiryStrikeVolatilities
 
   //-----------------------------------------------------------------------
   /**
-   * The bean-builder for {@code BlackIborCapletFloorletExpiryStrikeVolatilities}.
+   * The bean-builder for {@code NormalIborCapFloorExpiryStrikeVolatilities}.
    */
-  private static final class Builder extends DirectFieldsBeanBuilder<BlackIborCapletFloorletExpiryStrikeVolatilities> {
+  private static final class Builder extends DirectFieldsBeanBuilder<NormalIborCapFloorExpiryStrikeVolatilities> {
 
-    private Surface surface;
     private IborIndex index;
-    private DayCount dayCount;
     private ZonedDateTime valuationDateTime;
+    private Surface surface;
 
     /**
      * Restricted constructor.
@@ -463,14 +479,12 @@ public final class BlackIborCapletFloorletExpiryStrikeVolatilities
     @Override
     public Object get(String propertyName) {
       switch (propertyName.hashCode()) {
-        case -1853231955:  // surface
-          return surface;
         case 100346066:  // index
           return index;
-        case 1905311443:  // dayCount
-          return dayCount;
         case -949589828:  // valuationDateTime
           return valuationDateTime;
+        case -1853231955:  // surface
+          return surface;
         default:
           throw new NoSuchElementException("Unknown property: " + propertyName);
       }
@@ -479,17 +493,14 @@ public final class BlackIborCapletFloorletExpiryStrikeVolatilities
     @Override
     public Builder set(String propertyName, Object newValue) {
       switch (propertyName.hashCode()) {
-        case -1853231955:  // surface
-          this.surface = (Surface) newValue;
-          break;
         case 100346066:  // index
           this.index = (IborIndex) newValue;
           break;
-        case 1905311443:  // dayCount
-          this.dayCount = (DayCount) newValue;
-          break;
         case -949589828:  // valuationDateTime
           this.valuationDateTime = (ZonedDateTime) newValue;
+          break;
+        case -1853231955:  // surface
+          this.surface = (Surface) newValue;
           break;
         default:
           throw new NoSuchElementException("Unknown property: " + propertyName);
@@ -522,23 +533,21 @@ public final class BlackIborCapletFloorletExpiryStrikeVolatilities
     }
 
     @Override
-    public BlackIborCapletFloorletExpiryStrikeVolatilities build() {
-      return new BlackIborCapletFloorletExpiryStrikeVolatilities(
-          surface,
+    public NormalIborCapFloorExpiryStrikeVolatilities build() {
+      return new NormalIborCapFloorExpiryStrikeVolatilities(
           index,
-          dayCount,
-          valuationDateTime);
+          valuationDateTime,
+          surface);
     }
 
     //-----------------------------------------------------------------------
     @Override
     public String toString() {
-      StringBuilder buf = new StringBuilder(160);
-      buf.append("BlackIborCapletFloorletExpiryStrikeVolatilities.Builder{");
-      buf.append("surface").append('=').append(JodaBeanUtils.toString(surface)).append(',').append(' ');
+      StringBuilder buf = new StringBuilder(128);
+      buf.append("NormalIborCapFloorExpiryStrikeVolatilities.Builder{");
       buf.append("index").append('=').append(JodaBeanUtils.toString(index)).append(',').append(' ');
-      buf.append("dayCount").append('=').append(JodaBeanUtils.toString(dayCount)).append(',').append(' ');
-      buf.append("valuationDateTime").append('=').append(JodaBeanUtils.toString(valuationDateTime));
+      buf.append("valuationDateTime").append('=').append(JodaBeanUtils.toString(valuationDateTime)).append(',').append(' ');
+      buf.append("surface").append('=').append(JodaBeanUtils.toString(surface));
       buf.append('}');
       return buf.toString();
     }

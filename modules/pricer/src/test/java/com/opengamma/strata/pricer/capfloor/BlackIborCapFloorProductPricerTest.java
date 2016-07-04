@@ -53,7 +53,7 @@ public class BlackIborCapFloorProductPricerTest {
   private static final ZonedDateTime VALUATION = dateUtc(2015, 8, 20);
   private static final ImmutableRatesProvider RATES =
       IborCapletFloorletDataSet.createRatesProvider(VALUATION.toLocalDate());
-  private static final BlackIborCapletFloorletExpiryStrikeVolatilities VOLS = IborCapletFloorletDataSet
+  private static final BlackIborCapFloorExpiryStrikeVolatilities VOLS = IborCapletFloorletDataSet
       .createBlackVolatilitiesProvider(VALUATION, EUR_EURIBOR_3M);
   // valuation at payment of 1st period
   private static final double OBS_INDEX_1 = 0.012;
@@ -65,7 +65,7 @@ public class BlackIborCapFloorProductPricerTest {
   private static final ZonedDateTime VALUATION_PAY = dateUtc(2016, 1, 21);
   private static final ImmutableRatesProvider RATES_PAY =
       IborCapletFloorletDataSet.createRatesProvider(VALUATION_PAY.toLocalDate(), EUR_EURIBOR_3M, TIME_SERIES);
-  private static final BlackIborCapletFloorletExpiryStrikeVolatilities VOLS_PAY = IborCapletFloorletDataSet
+  private static final BlackIborCapFloorExpiryStrikeVolatilities VOLS_PAY = IborCapletFloorletDataSet
       .createBlackVolatilitiesProvider(VALUATION_PAY, EUR_EURIBOR_3M);
 
   private static final double TOL = 1.0e-13;

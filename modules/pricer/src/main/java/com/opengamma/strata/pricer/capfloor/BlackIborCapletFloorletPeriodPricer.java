@@ -22,8 +22,8 @@ public class BlackIborCapletFloorletPeriodPricer
   public static final BlackIborCapletFloorletPeriodPricer DEFAULT = new BlackIborCapletFloorletPeriodPricer();
 
   @Override
-  protected void validate(IborCapletFloorletVolatilities volatilities) {
-    ArgChecker.isTrue(volatilities instanceof BlackIborCapletFloorletVolatilities, "volatilities must be Black volatilities");
+  protected void validate(IborCapFloorVolatilities volatilities) {
+    ArgChecker.isTrue(volatilities instanceof BlackIborCapFloorVolatilities, "volatilities must be Black volatilities");
   }
 
 }

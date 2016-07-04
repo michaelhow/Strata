@@ -17,13 +17,13 @@ public class NormalIborCapletFloorletPeriodPricer
     extends VolatilityIborCapletFloorletPeriodPricer {
 
   /**
-  * Default implementation.
-  */
+   * Default implementation.
+   */
   public static final NormalIborCapletFloorletPeriodPricer DEFAULT = new NormalIborCapletFloorletPeriodPricer();
 
   @Override
-  protected void validate(IborCapletFloorletVolatilities volatilities) {
-    ArgChecker.isTrue(volatilities instanceof NormalIborCapletFloorletVolatilities, "volatilities must be normal volatilities");
+  protected void validate(IborCapFloorVolatilities volatilities) {
+    ArgChecker.isTrue(volatilities instanceof NormalIborCapFloorVolatilities, "volatilities must be normal volatilities");
   }
 
 }
